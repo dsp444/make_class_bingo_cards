@@ -1,5 +1,5 @@
 #######################
-# This script will creat custom "bingo" cards for the specific purpose
+# This script will create custom "bingo" cards for the specific purpose
 # to help students get to know each other.
 #
 # The input to the script is a .csv file with category headings across the columns
@@ -11,19 +11,24 @@
 # the headings, and place them on a 5x5 bingo grid.  The idea is then that each student has to
 # connect 5 other students in a row by finding student who match the grid.
 #
-# The script requires 2 command line inputs: 1) the .csv file name and 2) the number or random 
-# bingo cards to make.
-# Note: because it is a .csv file, you cannot use commas in your file.  For example, I like to
+# The script requires 2 command line inputs: (1) the .csv file name and (2a) the number of random 
+# bingo cards to make or (2b) the name of a plain text file with a list of labels to append to the output
+# file names.  For the second command line argument: if option 2a is used, then the output files will be 
+# that many bingo cards with filenames bingo_card_###.pdf; if option 2b is used, then the output files
+# will be equal to the number of labels in the given file with filenames bingo_card_LABEL.pdf
+#
+# Note: because the input is a .csv file, you cannot use commas in your file.  For example, I like to
 # use Hometown as a category but have to leave out the comma between city and state.
 #
-# Version 1.0    Dan Puperi    8/05/2020
+# Version 1.1    Dan Puperi    8/06/2020             # Add option to assign labels to bingo card files
+#                                                    # Also some minor coding style changes
+# Version 1.0    Dan Puperi    8/05/2020             # Initial release
 #
 #######################
 
 import matplotlib.pyplot as plt
 from matplotlib.backends.backend_pdf import PdfPages
-import numpy as np
-import sys, random, os
+import sys, random, os, re
 
 OUT=sys.stdout.write
 
@@ -52,6 +57,25 @@ def read_input_file( fname ):
 #######################
 
 #######################
+# Read in output file labels from possible second command line argument.
+# Need to process the labels to make them nice - remove any commas, spaces, special chars
+# and replace with underscore characters.
+def read_labels_file( fname ):
+    output_list = []
+    with open( fname ) as file:
+        lines = file.readlines()
+    for line in lines:
+        label = ''
+        pieces = re.split( r'\W+', line.strip() )
+        for piece in pieces:
+            if piece not in ( '', '.' ):
+                label += '_%s' % piece
+        if label != '':
+            output_list.append( label )
+    return output_list
+#######################
+
+#######################
 # Use matplotlib to make a graphical bingo card and save it to a .pdf file
 def make_bingo_card( output_fname, squares ):
     fig = plt.figure()
@@ -59,11 +83,11 @@ def make_bingo_card( output_fname, squares ):
     ax1 = fig.subplots( 1,1 )
 
 #    Create the background grid and make it look pretty
-    ax1.set_xticks( np.arange(BINGO_SIZE+1) )
-    ax1.set_yticks( np.arange(BINGO_SIZE+1) )
+    ax1.set_xticks( range(BINGO_SIZE+1) )
+    ax1.set_yticks( range(BINGO_SIZE+1) )
     ax1.set_xticklabels( [] )
     ax1.set_yticklabels( [] )
-    ax1.tick_params( axis="both", which="both",length=0 )
+    ax1.tick_params( axis='both', which='both',length=0 )
     ax1.grid( True )
   
 #    Put text into each square  
@@ -71,13 +95,14 @@ def make_bingo_card( output_fname, squares ):
         for j in range( 0,BINGO_SIZE ):
             label1=squares[j+i*5].split(':')[0]
             label2=squares[j+i*5].split(':')[1]
-            ax1.text( i+0.5,j+0.85,label1,ha="center",va="center", fontsize=choose_font_size( label1 ), fontweight='bold' )
-            ax1.text( i+0.5,j+0.7,label2,ha="center",va="center", fontsize=choose_font_size( label2 ) )
+            ax1.text( i+0.5,j+0.85,label1,ha='center',va='center', fontsize=choose_font_size( label1 ), fontweight='bold' )
+            ax1.text( i+0.5,j+0.7,label2,ha='center',va='center', fontsize=choose_font_size( label2 ) )
 
 #    Save the card to a .pdf file
     pp = PdfPages( output_fname )
     pp.savefig( plt.gcf() )
     pp.close()
+    plt.close()
 #######################
 
 #######################
@@ -102,11 +127,15 @@ def choose_font_size( text ):
 # Function to write usage information to the command line.  Helps user if they provide bad input
 def usage():
     OUT( '\nClass bingo card maker\n\n' )
-    OUT( ' usage: make_class_bingo_cards.py input_file_name number_of_unique_cards\n\n' )
+    OUT( ' usage: make_class_bingo_cards.py input_file_name number_of_unique_cards | file_name_with_output_file_labels\n\n' )
     OUT( '    The input file name must be a .csv file with columns for each category and contains\n' )
     OUT( '    rows that list things that belong with each categoty.\n' ) 
-    OUT( '    The number_of_unique_cards must be an integer and tells the script how many bingo cards\n' )
-    OUT( '    to make.  The output files will be named bingo_card_XXX.pdf\n\n' )
+    OUT( '    The second command line input must exist but can be one of two things\n' )
+    OUT( '       a) the number_of_unique_cards must be an integer and tells the script how many bingo cards to make\n' )
+    OUT( '          The output files will be named bingo_card_###.pdf\n' )
+    OUT( '       b) the file_name_with_output_file_labels is a plain text file with a list of names/labels to append\n' )
+    OUT( '          to the output file name.  The script will make the a number of bingo cards equal to the number of\n ' )
+    OUT( '          rows in this output file with the output files named bingo_card_INPUTNAME.pdf\n\n' )
 #######################
 
 #######################
@@ -116,21 +145,30 @@ if __name__ == '__main__':
 # If there aren't exactly 2 command line arguments (input_file_name and number of cards to make), then 
 # display the instructions of how to use this program.
     if len(sys.argv) != 3:
+        OUT( '\nDid not provide exactly 2 command line arguments needed for this script to work.\n')
         usage()
         sys.exit(1)
 
 # Get command line imputs and do some error checking
     input_fname = sys.argv[1]
     if not os.path.exists( input_fname ):
-        OUT( '\nERROR: could not find your input file name.\n\n' )
+        OUT( '\nERROR: could not find your input file name (first command line argument).\n' )
         usage()
         sys.exit(1)
+
+# Get second command line input.  Decide which option the user provided  
+    labels = None
     try:
         num_cards = int( sys.argv[2] )
     except:
-        OUT( '\nERROR: count not interpret how many bingo cards to make.  The 2nd input must be an integer.\n\n' )
-        usage()
-        sys.exit(1)
+        if not os.path.exists( sys.argv[2] ):
+            OUT( '\nERROR: could not find your file with list of labels (second command line argument)\n' )
+            OUT( '       or you tried to input the number of cards to make, but could not intepret that to an integer.\n')
+            usage()
+            sys.exit(1)
+# The second command line aregument is a valid file, read in the labels one per row
+        labels = read_labels_file( sys.argv[2] )
+        num_cards = len( labels )
 
 # Read in the input file - this will return a list of everything in the input file
     input_data = read_input_file( input_fname )
@@ -144,6 +182,9 @@ if __name__ == '__main__':
             sys.exit(1)
 
 #     Now make the bingo card
-        make_bingo_card( "bingo_card_%03d.pdf"%i, this_card )
+        if labels == None:
+            make_bingo_card( 'bingo_card_%03d.pdf' % i, this_card )
+        else:
+            make_bingo_card( 'bingo_card%s.pdf' % labels[i-1], this_card )
 #
 #######################
