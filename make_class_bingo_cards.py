@@ -20,9 +20,10 @@
 # Note: because the input is a .csv file, you cannot use commas in your file.  For example, I like to
 # use Hometown as a category but have to leave out the comma between city and state.
 #
-# Version 1.1    Dan Puperi    8/06/2020             # Add option to assign labels to bingo card files
-#                                                    # Also some minor coding style changes
-# Version 1.0    Dan Puperi    8/05/2020             # Initial release
+# Version 1.2    Dan Puperi    09/03/2020             # If line is too long, split into 2 lines
+# Version 1.1    Dan Puperi    08/06/2020             # Add option to assign labels to bingo card files
+#                                                     # Also some minor coding style changes
+# Version 1.0    Dan Puperi    08/05/2020             # Initial release
 #
 #######################
 
@@ -96,7 +97,30 @@ def make_bingo_card( output_fname, squares ):
             label1=squares[j+i*5].split(':')[0]
             label2=squares[j+i*5].split(':')[1]
             ax1.text( i+0.5,j+0.85,label1,ha='center',va='center', fontsize=choose_font_size( label1 ), fontweight='bold' )
-            ax1.text( i+0.5,j+0.7,label2,ha='center',va='center', fontsize=choose_font_size( label2 ) )
+# If line is two long split into two lines - that is as long as I want to go
+            if choose_font_size( label2 ) > 5:
+                ax1.text( i+0.5,j+0.7,label2,ha='center',va='center', fontsize=choose_font_size( label2 ) )
+            else:
+
+# Not a perfect solution, but try to split the line as close to the middle as possible between words
+                pieces=label2.split()
+                split_index=int(len(pieces)/2)
+                split_index2=int(len(pieces)/2)+1
+                label2a = ' '.join( pieces[:split_index] )
+                label2b = ' '.join( pieces[split_index:] )
+                label2c = ' '.join( pieces[:split_index2] )
+                label2d = ' '.join( pieces[split_index2:] )
+                diff_ab = abs( len(label2a) - len(label2b) )
+                diff_cd = abs( len(label2c) - len(label2d) )
+                if diff_ab <= diff_cd:
+                    label2_1 = label2a
+                    label2_2 = label2b
+                else:
+                    label2_1 = label2c
+                    label2_2 = label2d
+                fsize = min( choose_font_size( label2_1 ), choose_font_size( label2_2 )  )
+                ax1.text( i+0.5,j+0.7,label2_1,ha='center',va='center', fontsize=fsize )
+                ax1.text( i+0.5,j+0.6,label2_2,ha='center',va='center', fontsize=fsize )
 
 #    Save the card to a .pdf file
     pp = PdfPages( output_fname )
